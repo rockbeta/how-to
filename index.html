@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="An illustrated web page explaining how LLM-based agents plan, call tools, observe results, and improve their work."
+      content="A technical illustrated web page explaining how LLM-based coding agents exchange messages, reasoning state, tool calls, observations, patches, and verification results."
     />
     <title>how to | How LLM-Based Agents Work</title>
     <link rel="preload" href="assets/agent-workflow.png" as="image" />
@@ -18,8 +18,9 @@
         <span>how to</span>
       </a>
       <nav aria-label="Page sections">
+        <a href="#pipeline">Pipeline</a>
         <a href="#cycle">Cycle</a>
-        <a href="#parts">Parts</a>
+        <a href="#parts">Data</a>
         <a href="#trace">Trace</a>
       </nav>
     </header>
@@ -30,12 +31,12 @@
           <p class="eyebrow">LLM agent mechanics</p>
           <h1 id="hero-title">How LLM-Based Agents Work</h1>
           <p class="hero-lede">
-            An agent is a loop around a language model: it reads a goal, reasons
-            about the next move, calls tools, observes what happened, and keeps
-            going until the work is done.
+            A coding agent is a control loop around a language model. The model
+            reads structured messages, chooses an action, calls a tool, observes
+            the result, then generates or revises code until verification passes.
           </p>
           <div class="hero-actions" aria-label="Primary links">
-            <a class="button primary" href="#cycle">Explore the loop</a>
+            <a class="button primary" href="#pipeline">Follow a sample run</a>
             <a class="button secondary" href="#trace">See a run</a>
           </div>
         </div>
@@ -44,25 +45,121 @@
       <section class="intro-band" aria-label="Short explanation">
         <div class="intro-grid">
           <p>
-            The model supplies language understanding and judgment. The agent
-            system supplies the scaffolding: instructions, memory, tool access,
-            validation, and a stopping rule.
+            The LLM predicts the next useful message from the context it sees:
+            system rules, developer instructions, user prompt, file excerpts,
+            tool schemas, previous observations, and any compact state the agent
+            runtime keeps.
           </p>
           <p>
-            That scaffolding is what turns one model response into an iterative
-            worker that can inspect a repo, edit a file, test a change, and
-            adapt from the result.
+            The coding agent runtime turns those messages into action. It
+            selects tools, enforces permissions, applies patches, runs checks,
+            feeds results back to the model, and decides whether to continue,
+            ask, or deliver.
           </p>
+        </div>
+      </section>
+
+      <section class="section technical-section" id="pipeline" aria-labelledby="pipeline-title">
+        <div class="section-heading">
+          <p class="eyebrow">Technical walk-through</p>
+          <h2 id="pipeline-title">Sample prompt to code-generation loop.</h2>
+          <p>
+            A real agent does not simply emit final code. It exchanges typed
+            packets with the runtime: prompt messages, compact reasoning state,
+            tool calls, observations, edits, and verification results.
+          </p>
+        </div>
+
+        <div class="pipeline-layout">
+          <div class="flow-rail" aria-label="Sample agent data flow">
+            <button class="flow-step active" data-packet="prompt">
+              <span class="flow-index">01</span>
+              <span>
+                <strong>Prompt</strong>
+                <small>User goal plus operating rules</small>
+              </span>
+            </button>
+            <button class="flow-step" data-packet="thinking">
+              <span class="flow-index">02</span>
+              <span>
+                <strong>Reasoning state</strong>
+                <small>Private thinking summarized as a decision record</small>
+              </span>
+            </button>
+            <button class="flow-step" data-packet="tool">
+              <span class="flow-index">03</span>
+              <span>
+                <strong>Tool usage</strong>
+                <small>A structured request to inspect the repo</small>
+              </span>
+            </button>
+            <button class="flow-step" data-packet="observation">
+              <span class="flow-index">04</span>
+              <span>
+                <strong>Observation</strong>
+                <small>Tool result returned to the model context</small>
+              </span>
+            </button>
+            <button class="flow-step" data-packet="code">
+              <span class="flow-index">05</span>
+              <span>
+                <strong>Code generation</strong>
+                <small>A patch, not a loose prose suggestion</small>
+              </span>
+            </button>
+            <button class="flow-step" data-packet="verify">
+              <span class="flow-index">06</span>
+              <span>
+                <strong>Verify</strong>
+                <small>Tests and browser checks close the loop</small>
+              </span>
+            </button>
+          </div>
+
+          <article class="packet-panel" aria-live="polite">
+            <div class="packet-header">
+              <div>
+                <p class="panel-kicker" id="packet-kicker">Packet 01</p>
+                <h3 id="packet-title">Prompt packet</h3>
+              </div>
+              <span class="packet-badge" id="packet-badge">messages</span>
+            </div>
+            <p id="packet-copy">
+              The runtime assembles the visible context the model can condition
+              on: instructions, the user request, relevant files, and available
+              tool schemas.
+            </p>
+            <pre class="code-window" aria-label="Data exchanged at this step"><code id="packet-code"></code></pre>
+          </article>
+        </div>
+
+        <div class="exchange-grid" aria-label="What data moves across the loop">
+          <article>
+            <h3>Into the model</h3>
+            <p>Messages, retrieved context, tool schemas, previous observations.</p>
+          </article>
+          <article>
+            <h3>Out of the model</h3>
+            <p>Next action, arguments, patch text, explanation, or a question.</p>
+          </article>
+          <article>
+            <h3>Into the runtime</h3>
+            <p>Tool call JSON, patch operations, permission requests, stop signal.</p>
+          </article>
+          <article>
+            <h3>Back to context</h3>
+            <p>Exit codes, stdout, file diffs, screenshots, test results.</p>
+          </article>
         </div>
       </section>
 
       <section class="section" id="cycle" aria-labelledby="cycle-title">
         <div class="section-heading">
-          <p class="eyebrow">The core loop</p>
-          <h2 id="cycle-title">A good agent is mostly disciplined repetition.</h2>
+          <p class="eyebrow">Runtime loop</p>
+          <h2 id="cycle-title">The model and runtime take turns.</h2>
           <p>
-            Each step narrows uncertainty. The agent moves from intent to state,
-            from state to action, and from action back to evidence.
+            Each turn adds evidence to the transcript. The runtime handles
+            effects; the model handles interpretation, selection, and synthesis.
           </p>
         </div>
 
@@ -86,7 +183,7 @@
             </button>
             <div class="agent-core">
               <span class="core-label">LLM</span>
-              <span class="core-subtitle">reasoning core</span>
+              <span class="core-subtitle">next-action core</span>
             </div>
           </div>
 
@@ -114,57 +211,57 @@
 
       <section class="section parts-section" id="parts" aria-labelledby="parts-title">
         <div class="section-heading">
-          <p class="eyebrow">What surrounds the model</p>
-          <h2 id="parts-title">Agents are systems, not just prompts.</h2>
+          <p class="eyebrow">Data surfaces</p>
+          <h2 id="parts-title">A coding agent is a protocol around an LLM.</h2>
         </div>
 
         <div class="module-grid">
           <article class="module-card">
             <span class="module-index">01</span>
-            <h3>Instructions</h3>
+            <h3>Prompt Assembly</h3>
             <p>
-              Define the role, boundaries, response style, and operating rules.
-              They keep the model pointed at the right job.
+              Packs system rules, developer guidance, user intent, retrieved
+              snippets, and recent observations into the model context.
             </p>
           </article>
           <article class="module-card">
             <span class="module-index">02</span>
-            <h3>Memory</h3>
+            <h3>Context Budget</h3>
             <p>
-              Carries useful facts across steps: files read, tests run,
-              decisions made, and details the agent should not forget.
+              Decides which files, logs, summaries, and prior decisions fit in
+              the context window for the next model call.
             </p>
           </article>
           <article class="module-card">
             <span class="module-index">03</span>
-            <h3>Tools</h3>
+            <h3>Tool Schema</h3>
             <p>
-              Let the agent leave pure text and act on the world: search files,
-              call APIs, run tests, edit code, browse pages, or create assets.
+              Describes callable operations and their argument shapes, such as
+              reading files, applying patches, running tests, or opening a page.
             </p>
           </article>
           <article class="module-card">
             <span class="module-index">04</span>
-            <h3>Planner</h3>
+            <h3>Sandbox</h3>
             <p>
-              Breaks a goal into steps and updates the route when the evidence
-              changes. Plans are useful because reality pushes back.
+              Separates harmless inspection from writes, network access, and
+              commands that need explicit permission.
             </p>
           </article>
           <article class="module-card">
             <span class="module-index">05</span>
-            <h3>Evaluator</h3>
+            <h3>Patch Layer</h3>
             <p>
-              Checks whether the result actually satisfies the goal, often with
-              tests, screenshots, schema validation, or a review pass.
+              Converts model-proposed edits into deterministic file changes,
+              usually as structured updates or unified diffs.
             </p>
           </article>
           <article class="module-card">
             <span class="module-index">06</span>
-            <h3>Stop Rule</h3>
+            <h3>Verifier</h3>
             <p>
-              Decides when the work is good enough to hand back, when to ask a
-              question, and when to stop because a constraint blocks progress.
+              Runs tests, linters, screenshots, type checks, or review passes
+              and returns compact evidence for the next loop.
             </p>
           </article>
         </div>
@@ -172,38 +269,38 @@
 
       <section class="section split-section" id="trace" aria-labelledby="trace-title">
         <div class="section-heading compact">
-          <p class="eyebrow">A tiny execution trace</p>
-          <h2 id="trace-title">One request becomes several grounded moves.</h2>
+          <p class="eyebrow">Coding-agent trace</p>
+          <h2 id="trace-title">One request becomes a sequence of typed turns.</h2>
           <p>
-            The visible answer is the last step. Most of the work happens in the
-            private loop between reasoning, tool calls, and observations.
+            The visible answer is only the final turn. The useful work is the
+            repeated exchange of actions and evidence.
           </p>
         </div>
 
         <ol class="trace-list">
           <li>
             <span class="trace-type">Goal</span>
-            <p>Build a page that explains how LLM agents work.</p>
+            <p>User asks: add a technical explainer for the agent loop.</p>
           </li>
           <li>
-            <span class="trace-type">Inspect</span>
-            <p>Check the workspace, repo state, available assets, and publishing path.</p>
+            <span class="trace-type">Context</span>
+            <p>Runtime sends current files, repo state, and tool schemas to the model.</p>
           </li>
           <li>
-            <span class="trace-type">Plan</span>
-            <p>Choose a static site with a hero visual, interactive loop, and trace.</p>
+            <span class="trace-type">Decide</span>
+            <p>Model selects a small edit plan and asks to inspect relevant files.</p>
           </li>
           <li>
-            <span class="trace-type">Act</span>
-            <p>Create files, wire up the interaction, and move the image into the repo.</p>
+            <span class="trace-type">Patch</span>
+            <p>Runtime applies HTML, CSS, and JavaScript edits proposed by the model.</p>
           </li>
           <li>
             <span class="trace-type">Verify</span>
-            <p>Open the page, test the controls, and adjust layout for small screens.</p>
+            <p>Browser and diff checks return evidence: layout, interactions, errors.</p>
           </li>
           <li>
             <span class="trace-type">Deliver</span>
-            <p>Commit the result, publish the repository, and hand back the URL.</p>
+            <p>Agent summarizes changed files, checks run, and remaining caveats.</p>
           </li>
         </ol>
       </section>

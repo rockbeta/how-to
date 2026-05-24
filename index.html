@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="An illustrated web page explaining how LLM-based agents plan, call tools, observe results, and improve their work."
+    />
+    <title>how to | How LLM-Based Agents Work</title>
+    <link rel="preload" href="assets/agent-workflow.png" as="image" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header" aria-label="Site header">
+      <a class="brand" href="#top" aria-label="how to home">
+        <span class="brand-mark" aria-hidden="true">h</span>
+        <span>how to</span>
+      </a>
+      <nav aria-label="Page sections">
+        <a href="#cycle">Cycle</a>
+        <a href="#parts">Parts</a>
+        <a href="#trace">Trace</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">LLM agent mechanics</p>
+          <h1 id="hero-title">How LLM-Based Agents Work</h1>
+          <p class="hero-lede">
+            An agent is a loop around a language model: it reads a goal, reasons
+            about the next move, calls tools, observes what happened, and keeps
+            going until the work is done.
+          </p>
+          <div class="hero-actions" aria-label="Primary links">
+            <a class="button primary" href="#cycle">Explore the loop</a>
+            <a class="button secondary" href="#trace">See a run</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="intro-band" aria-label="Short explanation">
+        <div class="intro-grid">
+          <p>
+            The model supplies language understanding and judgment. The agent
+            system supplies the scaffolding: instructions, memory, tool access,
+            validation, and a stopping rule.
+          </p>
+          <p>
+            That scaffolding is what turns one model response into an iterative
+            worker that can inspect a repo, edit a file, test a change, and
+            adapt from the result.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="cycle" aria-labelledby="cycle-title">
+        <div class="section-heading">
+          <p class="eyebrow">The core loop</p>
+          <h2 id="cycle-title">A good agent is mostly disciplined repetition.</h2>
+          <p>
+            Each step narrows uncertainty. The agent moves from intent to state,
+            from state to action, and from action back to evidence.
+          </p>
+        </div>
+
+        <div class="cycle-layout">
+          <div class="cycle-stage" aria-label="Interactive agent cycle diagram">
+            <div class="cycle-ring" aria-hidden="true"></div>
+            <button class="cycle-node active" data-step="goal" style="--x: 50%; --y: 6%">
+              <span>Goal</span>
+            </button>
+            <button class="cycle-node" data-step="context" style="--x: 87%; --y: 31%">
+              <span>Context</span>
+            </button>
+            <button class="cycle-node" data-step="plan" style="--x: 73%; --y: 78%">
+              <span>Plan</span>
+            </button>
+            <button class="cycle-node" data-step="tools" style="--x: 27%; --y: 78%">
+              <span>Tools</span>
+            </button>
+            <button class="cycle-node" data-step="observe" style="--x: 13%; --y: 31%">
+              <span>Observe</span>
+            </button>
+            <div class="agent-core">
+              <span class="core-label">LLM</span>
+              <span class="core-subtitle">reasoning core</span>
+            </div>
+          </div>
+
+          <article class="focus-panel" aria-live="polite">
+            <p class="panel-kicker" id="focus-kicker">Step 1</p>
+            <h3 id="focus-title">Start with the goal</h3>
+            <p id="focus-copy">
+              The user asks for an outcome. The agent translates that into a
+              working objective, constraints, and a first guess at what evidence
+              it needs.
+            </p>
+            <dl class="focus-details">
+              <div>
+                <dt>Input</dt>
+                <dd id="focus-input">User request, system rules, task context</dd>
+              </div>
+              <div>
+                <dt>Output</dt>
+                <dd id="focus-output">A concrete objective and success criteria</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+      </section>
+
+      <section class="section parts-section" id="parts" aria-labelledby="parts-title">
+        <div class="section-heading">
+          <p class="eyebrow">What surrounds the model</p>
+          <h2 id="parts-title">Agents are systems, not just prompts.</h2>
+        </div>
+
+        <div class="module-grid">
+          <article class="module-card">
+            <span class="module-index">01</span>
+            <h3>Instructions</h3>
+            <p>
+              Define the role, boundaries, response style, and operating rules.
+              They keep the model pointed at the right job.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">02</span>
+            <h3>Memory</h3>
+            <p>
+              Carries useful facts across steps: files read, tests run,
+              decisions made, and details the agent should not forget.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">03</span>
+            <h3>Tools</h3>
+            <p>
+              Let the agent leave pure text and act on the world: search files,
+              call APIs, run tests, edit code, browse pages, or create assets.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">04</span>
+            <h3>Planner</h3>
+            <p>
+              Breaks a goal into steps and updates the route when the evidence
+              changes. Plans are useful because reality pushes back.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">05</span>
+            <h3>Evaluator</h3>
+            <p>
+              Checks whether the result actually satisfies the goal, often with
+              tests, screenshots, schema validation, or a review pass.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">06</span>
+            <h3>Stop Rule</h3>
+            <p>
+              Decides when the work is good enough to hand back, when to ask a
+              question, and when to stop because a constraint blocks progress.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split-section" id="trace" aria-labelledby="trace-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">A tiny execution trace</p>
+          <h2 id="trace-title">One request becomes several grounded moves.</h2>
+          <p>
+            The visible answer is the last step. Most of the work happens in the
+            private loop between reasoning, tool calls, and observations.
+          </p>
+        </div>
+
+        <ol class="trace-list">
+          <li>
+            <span class="trace-type">Goal</span>
+            <p>Build a page that explains how LLM agents work.</p>
+          </li>
+          <li>
+            <span class="trace-type">Inspect</span>
+            <p>Check the workspace, repo state, available assets, and publishing path.</p>
+          </li>
+          <li>
+            <span class="trace-type">Plan</span>
+            <p>Choose a static site with a hero visual, interactive loop, and trace.</p>
+          </li>
+          <li>
+            <span class="trace-type">Act</span>
+            <p>Create files, wire up the interaction, and move the image into the repo.</p>
+          </li>
+          <li>
+            <span class="trace-type">Verify</span>
+            <p>Open the page, test the controls, and adjust layout for small screens.</p>
+          </li>
+          <li>
+            <span class="trace-type">Deliver</span>
+            <p>Commit the result, publish the repository, and hand back the URL.</p>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Built as a compact explainer for the repo <strong>how-to</strong>.</p>
+      <a href="#top">Back to top</a>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

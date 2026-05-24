@@ -5,6 +5,9 @@ A compact static web page that illustrates how LLM-based agents work.
 The page explains the agent loop, the system parts around the model, and a
 small execution trace showing how a request becomes several grounded actions.
 
+It also includes `kv-cache.html`, a technical companion page explaining how
+KV cache works during transformer LLM inference.
+
 ## Run locally
 
 Open `index.html` in a browser, or serve the folder with any static file server:

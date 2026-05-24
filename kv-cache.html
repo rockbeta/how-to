@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A technical visual explanation of how KV cache is used in transformer LLM inference, including prefill, decode, tensor shapes, and memory cost."
+    />
+    <title>how to | How KV Cache Works in LLMs</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="kv-page">
+    <header class="site-header" aria-label="Site header">
+      <a class="brand" href="index.html" aria-label="how to home">
+        <span class="brand-mark" aria-hidden="true">h</span>
+        <span>how to</span>
+      </a>
+      <nav aria-label="Page sections">
+        <a href="index.html">Agents</a>
+        <a href="#prefill">Prefill</a>
+        <a href="#decode">Decode</a>
+        <a href="#memory">Memory</a>
+        <a href="#systems">Systems</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="kv-hero" aria-labelledby="kv-title">
+        <div class="kv-hero-copy">
+          <p class="eyebrow">Transformer inference internals</p>
+          <h1 id="kv-title">How KV Cache Works in LLMs</h1>
+          <p class="hero-lede">
+            KV cache is the memory structure that lets a transformer reuse the
+            keys and values computed for previous tokens. It makes generation
+            much faster, but turns context length into a serious memory cost.
+          </p>
+          <div class="hero-actions" aria-label="Primary links">
+            <a class="button primary" href="#prefill">Start with prefill</a>
+            <a class="button secondary" href="#memory">Estimate memory</a>
+          </div>
+        </div>
+
+        <div class="kv-visual" aria-label="KV cache high-level diagram">
+          <div class="token-strip" aria-label="Prompt tokens">
+            <span>The</span>
+            <span>model</span>
+            <span>reads</span>
+            <span>tokens</span>
+            <span>first</span>
+          </div>
+          <div class="attention-board">
+            <div class="query-card">
+              <strong>Q</strong>
+              <small>current token</small>
+            </div>
+            <div class="cache-stack">
+              <div><strong>K cache</strong><span>match against history</span></div>
+              <div><strong>V cache</strong><span>retrieve token information</span></div>
+            </div>
+            <div class="logit-card">
+              <strong>next-token logits</strong>
+              <small>sample one token, append cache, repeat</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="intro-band" aria-label="KV cache summary">
+        <div class="intro-grid">
+          <p>
+            In self-attention, every token creates query, key, and value
+            vectors. The query asks what to look for; keys say what each token
+            offers; values carry the information that gets mixed into the
+            current hidden state.
+          </p>
+          <p>
+            During generation, old keys and values do not change. The runtime
+            stores them once, then each new token only computes its own Q, K, V
+            and attends over the cached K and V from the whole context.
+          </p>
+        </div>
+      </section>
+
+      <section class="section kv-section" id="prefill" aria-labelledby="prefill-title">
+        <div class="section-heading">
+          <p class="eyebrow">Phase 1</p>
+          <h2 id="prefill-title">Prompt processing is cache construction.</h2>
+          <p>
+            When LM Studio says it is processing the prompt, the model is doing
+            a full forward pass over the input tokens. This is also called
+            prefill.
+          </p>
+        </div>
+
+        <div class="kv-two-column">
+          <article class="technical-card">
+            <h3>What happens in prefill</h3>
+            <ol class="dense-list">
+              <li>The chat template formats system, user, and assistant messages.</li>
+              <li>The tokenizer converts text into token IDs.</li>
+              <li>Embeddings turn token IDs into vectors.</li>
+              <li>Each transformer layer computes Q, K, V for every prompt token.</li>
+              <li>The model uses causal attention so token n can only see tokens before it.</li>
+              <li>K and V tensors are saved into the KV cache for later decoding.</li>
+              <li>The final prompt position produces the distribution for the first generated token.</li>
+            </ol>
+          </article>
+
+          <article class="formula-card">
+            <p class="panel-kicker">Attention per head</p>
+            <pre><code>Q = X Wq
+K = X Wk
+V = X Wv
+
+Attention(Q, K, V) =
+  softmax(Q K^T / sqrt(d_head)) V</code></pre>
+            <p>
+              In prefill, Q, K, and V are built for many prompt tokens at once.
+              The expensive part is comparing prompt tokens with previous prompt
+              tokens across every layer.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section kv-dark-section" id="decode" aria-labelledby="decode-title">
+        <div class="section-heading">
+          <p class="eyebrow">Phase 2</p>
+          <h2 id="decode-title">Generation reuses old K and V.</h2>
+          <p>
+            Once the prompt cache exists, the model decodes one token at a time.
+            The new token gets a fresh query, key, and value; the old tokens
+            contribute through cached K and V.
+          </p>
+        </div>
+
+        <div class="decode-simulator" aria-label="Interactive decode simulator">
+          <div class="sim-controls">
+            <button class="sim-button" type="button" id="kv-prev">Previous</button>
+            <button class="sim-button primary" type="button" id="kv-next">Next step</button>
+          </div>
+          <div class="sim-stage">
+            <div class="sim-column">
+              <p class="panel-kicker">Token stream</p>
+              <div class="sim-tokens" id="kv-tokens"></div>
+            </div>
+            <div class="sim-column">
+              <p class="panel-kicker">Layer cache</p>
+              <div class="cache-grid" id="kv-cache-grid"></div>
+            </div>
+            <div class="sim-column">
+              <p class="panel-kicker" id="kv-step-label">Step 1</p>
+              <h3 id="kv-step-title">Prefill prompt tokens</h3>
+              <p id="kv-step-copy">
+                The model processes prompt tokens in parallel and writes K/V
+                vectors for each layer into cache.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="code-split">
+          <article>
+            <h3>Without KV cache</h3>
+            <pre><code>for each generated token:
+  run transformer on all tokens so far
+  recompute old K and V again
+  sample next token</code></pre>
+            <p>Simple, but wasteful. Old tokens are recomputed every step.</p>
+          </article>
+          <article>
+            <h3>With KV cache</h3>
+            <pre><code>prefill(prompt):
+  cache K,V for prompt tokens
+
+decode(new_token):
+  compute Q,K,V for new token
+  append new K,V to cache
+  attend Q over cached K,V
+  sample next token</code></pre>
+            <p>Fast per token, but cache memory grows with sequence length.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section kv-section" id="memory" aria-labelledby="memory-title">
+        <div class="section-heading">
+          <p class="eyebrow">Memory model</p>
+          <h2 id="memory-title">The cache is large because it stores every layer.</h2>
+          <p>
+            KV cache size scales linearly with batch size, context length,
+            layers, KV heads, head dimension, and bytes per cache element.
+          </p>
+        </div>
+
+        <div class="memory-layout">
+          <article class="formula-card light">
+            <p class="panel-kicker">Shape</p>
+            <pre><code>K_cache[layer][batch][kv_head][token][head_dim]
+V_cache[layer][batch][kv_head][token][head_dim]</code></pre>
+            <p class="panel-kicker">Approximate bytes</p>
+            <pre><code>2 * layers * batch * kv_heads
+  * seq_len * head_dim * bytes_per_value</code></pre>
+            <p>
+              The leading 2 is for K and V. Some runtimes store the dimensions
+              in a different order for speed, but the count is the same.
+            </p>
+          </article>
+
+          <article class="calculator-card">
+            <h3>Cache size estimator</h3>
+            <div class="calc-grid">
+              <label>
+                Layers
+                <input id="calc-layers" type="number" min="1" max="160" value="32" />
+              </label>
+              <label>
+                KV heads
+                <input id="calc-heads" type="number" min="1" max="128" value="8" />
+              </label>
+              <label>
+                Head dim
+                <input id="calc-dim" type="number" min="16" max="512" value="128" />
+              </label>
+              <label>
+                Context tokens
+                <input id="calc-seq" type="number" min="1" max="262144" value="4096" />
+              </label>
+              <label>
+                Batch
+                <input id="calc-batch" type="number" min="1" max="64" value="1" />
+              </label>
+              <label>
+                Bytes/value
+                <input id="calc-bytes" type="number" min="1" max="8" value="2" />
+              </label>
+            </div>
+            <div class="calc-result" aria-live="polite">
+              <span id="calc-result">512 MiB</span>
+              <small id="calc-detail">536,870,912 bytes of K/V cache</small>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section kv-section" id="systems" aria-labelledby="systems-title">
+        <div class="section-heading">
+          <p class="eyebrow">Inference systems</p>
+          <h2 id="systems-title">KV cache explains many runtime behaviors.</h2>
+        </div>
+
+        <div class="module-grid">
+          <article class="module-card">
+            <span class="module-index">01</span>
+            <h3>Long prompts feel slow</h3>
+            <p>
+              Prefill must process all prompt tokens and create cache entries
+              for every layer. A longer chat history means more prompt work.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">02</span>
+            <h3>First token latency</h3>
+            <p>
+              The first output token waits for prompt tokenization, prefill,
+              memory allocation, and sometimes GPU warmup.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">03</span>
+            <h3>GQA and MQA</h3>
+            <p>
+              Grouped-query and multi-query attention use fewer KV heads than
+              query heads, reducing cache memory and bandwidth.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">04</span>
+            <h3>Prompt caching</h3>
+            <p>
+              If a prefix is reused exactly, some systems can reuse its KV cache
+              and avoid reprocessing that prefix.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">05</span>
+            <h3>Paged attention</h3>
+            <p>
+              Serving engines often store cache in blocks, like virtual memory,
+              so many requests can share GPU memory without large contiguous
+              allocations.
+            </p>
+          </article>
+          <article class="module-card">
+            <span class="module-index">06</span>
+            <h3>Sliding windows</h3>
+            <p>
+              Some models attend only to a recent window, allowing the runtime
+              to evict older cache entries and cap memory growth.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section kv-section" aria-labelledby="mental-model-title">
+        <div class="section-heading compact">
+          <p class="eyebrow">Mental model</p>
+          <h2 id="mental-model-title">Why the cache matters.</h2>
+        </div>
+        <div class="summary-band">
+          <p>
+            The prompt is read once during prefill. Its keys and values become
+            reusable memory. Each generated token adds one more slice to that
+            memory, then uses a fresh query to look back over it.
+          </p>
+          <p>
+            That is why local inference has two different speeds: prompt
+            processing throughput for prefill, and tokens-per-second for decode.
+            KV cache is the bridge between them.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>Built as a technical companion page for <strong>how-to</strong>.</p>
+      <a href="#top">Back to top</a>
+    </footer>
+
+    <script src="kv-cache.js"></script>
+  </body>
+</html>

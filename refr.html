@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refraction of Light Simulator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 900px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; margin-top: 0; color: #0071e3; }
+        .layout {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .controls {
+            flex: 1;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .control-group {
+            background: #f5f5f7;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #0071e3;
+        }
+        .control-group.medium2 { border-left-color: #34c759; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; margin-top: 5px; }
+        select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-top: 5px; }
+        .stats {
+            margin-top: 10px;
+            font-size: 0.9em;
+            background: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #e5e5e5;
+        }
+        .visualization {
+            position: relative;
+        }
+        canvas {
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            background-color: #fff;
+            cursor: crosshair;
+        }
+        .instructions {
+            font-size: 0.9em;
+            color: #6e6e73;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Refraction & Snell's Law Simulator</h1>
+    
+    <div class="layout">
+        <div class="visualization">
+            <canvas id="opticsCanvas" width="500" height="400"></canvas>
+            <div class="instructions">← Click and drag anywhere on the canvas to aim the light laser →</div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Top Medium (Medium 1)</label>
+                <select id="preset1" onchange="applyPreset(1)">
+                    <option value="1.0" selected>Air (n = 1.0)</option>
+                    <option value="1.33">Water (n = 1.33)</option>
+                    <option value="1.5">Glass (n = 1.5)</option>
+                    <option value="2.42">Diamond (n = 2.42)</option>
+                    <option value="custom">Custom Index...</option>
+                </select>
+                <div id="custom-n1-box" style="display:none; margin-top:8px;">
+                    <span id="n1-val">n₁ = 1.00</span>
+                    <input type="range" id="n1" min="1.0" max="3.0" step="0.01" value="1.0">
+                </div>
+            </div>
+
+            <div class="control-group medium2">
+                <label>Bottom Medium (Medium 2)</label>
+                <select id="preset2" onchange="applyPreset(2)">
+                    <option value="1.0">Air (n = 1.0)</option>
+                    <option value="1.33" selected>Water (n = 1.33)</option>
+                    <option value="1.5">Glass (n = 1.5)</option>
+                    <option value="2.42">Diamond (n = 2.42)</option>
+                    <option value="custom">Custom Index...</option>
+                </select>
+                <div id="custom-n2-box" style="display:block; margin-top:8px;">
+                    <span id="n2-val">n₂ = 1.33</span>
+                    <input type="range" id="n2" min="1.0" max="3.0" step="0.01" value="1.33">
+                </div>
+            </div>
+
+            <div class="control-group" style="border-left-color: #ff9500;">
+                <label>Live Physics Calculations</label>
+                <div class="stats">
+                    <strong>Angle of Incidence (θ₁):</strong> <span id="lbl-theta1">0°</span><br>
+                    <strong>Angle of Refraction (θ₂):</strong> <span id="lbl-theta2">0°</span><br>
+                    <div id="tir-warning" style="color: red; font-weight: bold; margin-top: 5px; display: none;">
+                        ⚠️ Total Internal Reflection!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('opticsCanvas');
+const ctx = canvas.getContext('2d');
+
+// Physics & State variables
+let n1 = 1.0;
+let n2 = 1.33;
+let laserAngle = 210; // Degrees relative to the standard system (pointing down-right initially)
+let isDragging = false;
+
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+
+// DOM Elements
+const n1Slider = document.getElementById('n1');
+const n2Slider = document.getElementById('n2');
+const n1Val = document.getElementById('n1-val');
+const n2Val = document.getElementById('n2-val');
+const preset1 = document.getElementById('preset1');
+const preset2 = document.getElementById('preset2');
+const customN1Box = document.getElementById('custom-n1-box');
+const customN2Box = document.getElementById('custom-n2-box');
+
+const lblTheta1 = document.getElementById('lbl-theta1');
+const lblTheta2 = document.getElementById('lbl-theta2');
+const tirWarning = document.getElementById('tir-warning');
+
+// Handle UI Preset Changes
+function applyPreset(mediumNum) {
+    if (mediumNum === 1) {
+        if (preset1.value === 'custom') {
+            customN1Box.style.display = 'block';
+        } else {
+            customN1Box.style.display = 'none';
+            n1 = parseFloat(preset1.value);
+            n1Slider.value = n1;
+        }
+    } else {
+        if (preset2.value === 'custom') {
+            customN2Box.style.display = 'block';
+        } else {
+            customN2Box.style.display = 'none';
+            n2 = parseFloat(preset2.value);
+            n2Slider.value = n2;
+        }
+    }
+    updateUIStrings();
+    draw();
+}
+
+function updateUIStrings() {
+    n1Val.innerText = `n₁ = ${parseFloat(n1).toFixed(2)}`;
+    n2Val.innerText = `n₂ = ${parseFloat(n2).toFixed(2)}`;
+}
+
+// Event Listeners for Sliders
+n1Slider.addEventListener('input', (e) => { n1 = parseFloat(e.target.value); updateUIStrings(); draw(); });
+n2Slider.addEventListener('input', (e) => { n2 = parseFloat(e.target.value); updateUIStrings(); draw(); });
+
+// Mouse/Touch Interaction to aim the Laser
+function aimLaser(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+    
+    // Prevent calculation if mouse is exactly on the boundary line or bottom half
+    if(y >= centerY) return;
+
+    // Calculate angle from boundary intersection point
+    let angleRad = Math.atan2(y - centerY, x - centerX);
+    laserAngle = angleRad * (180 / Math.PI);
+    draw();
+}
+
+canvas.addEventListener('mousedown', (e) => { isDragging = true; aimLaser(e); });
+window.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('mousemove', (e) => { if (isDragging) aimLaser(e); });
+
+canvas.addEventListener('touchstart', (e) => { isDragging = true; aimLaser(e); });
+window.addEventListener('touchend', () => isDragging = false);
+canvas.addEventListener('touchmove', (e) => { if (isDragging) aimLaser(e); });
+
+// Core Render Logic
+function draw() {
+    // 1. Clean Canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Draw Environments
+    // Top environment (Medium 1)
+    ctx.fillStyle = '#e4f2ff';
+    ctx.fillRect(0, 0, canvas.width, centerY);
+    
+    // Bottom environment (Medium 2) - Higher index gets deeper blue hue
+    const blueIntensity = Math.min(255, Math.floor(200 - (n2 - 1) * 50));
+    ctx.fillStyle = `rgb(${blueIntensity-20}, ${blueIntensity}, 255)`;
+    ctx.fillRect(0, centerY, canvas.width, centerY);
+
+    // 3. Draw Normal Line (Dashed axis vertical line)
+    ctx.strokeStyle = '#8e8e93';
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]); // Reset to solid line
+
+    // Boundary Line
+    ctx.strokeStyle = '#1d1d1f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(canvas.width, centerY);
+    ctx.stroke();
+
+    // 4. Trace Physics Rays
+    // Convert current laser position to Incident Angle relative to Normal Line
+    let incidentAngleRad = Math.atan2(centerY - 0, centerX - centerX) - (laserAngle * Math.PI / 180);
+    // Normalize to quadrant 1 or 2 relative to normal vector pointing upward
+    let theta1Rad = Math.PI - (laserAngle * Math.PI / 180);
+    if(laserAngle < 0) theta1Rad = -laserAngle * Math.PI / 180 - Math.PI;
+    
+    // Fix signs relative to the surface normal vector pointing straight up
+    let dx = Math.cos(laserAngle * Math.PI / 180);
+    let dy = Math.sin(laserAngle * Math.PI / 180);
+    
+    let theta1 = Math.abs(Math.atan2(dx, -dy)); // Angle relative to vertical normal
+
+    // Draw Incident Ray (The incoming laser beam)
+    let laserStartX = centerX - (centerY * (dx/dy));
+    ctx.strokeStyle = '#ff3b30'; // Laser Red
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(laserStartX, 0);
+    ctx.lineTo(centerX, centerY);
+    ctx.stroke();
+
+    // Draw Reflection Ray (Always exists)
+    ctx.strokeStyle = 'rgba(255, 59, 48, 0.4)'; // Fainter reflected ray
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(centerX + (centerX - laserStartX), 0);
+    ctx.stroke();
+
+    // Calculate Refraction via Snell's Law: n1 * sin(theta1) = n2 * sin(theta2)
+    let sinTheta2 = (n1 * Math.sin(theta1)) / n2;
+
+    if (sinTheta2 > 1.0) {
+        // Total Internal Reflection (TIR Case)
+        tirWarning.style.display = 'block';
+        lblTheta2.innerText = "N/A (Reflected)";
+        
+        // Render full internal reflection ray downward
+        ctx.strokeStyle = '#ff3b30';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + (centerX - laserStartX), canvas.height);
+        ctx.stroke();
+    } else {
+        // Safe Refraction Case
+        tirWarning.style.display = 'none';
+        let theta2 = Math.asin(sinTheta2);
+        
+        lblTheta1.innerText = `${(theta1 * 180 / Math.PI).toFixed(1)}°`;
+        lblTheta2.innerText = `${(theta2 * 180 / Math.PI).toFixed(1)}°`;
+
+        // Establish directional sign vector for the exit beam path
+        let refractSignX = (laserStartX < centerX) ? 1 : -1;
+        let refractDx = Math.sin(theta2) * refractSignX;
+        let refractDy = Math.cos(theta2);
+
+        ctx.strokeStyle = '#ff9500'; // Amber refracted beam
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + (centerY * (refractDx/refractDy)), canvas.height);
+        ctx.stroke();
+    }
+
+    // Draw Labels on Canvas
+    ctx.fillStyle = '#1d1d1f';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(`Medium 1 (Top)`, 15, 25);
+    ctx.fillText(`Medium 2 (Bottom)`, 15, canvas.height - 20);
+}
+
+// Initial draw execution loop hook
+updateUIStrings();
+draw();
+</script>
+
+</body>
+</html>
